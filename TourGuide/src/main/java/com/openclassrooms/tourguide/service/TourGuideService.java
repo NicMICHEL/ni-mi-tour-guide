@@ -17,6 +17,10 @@ import tripPricer.TripPricer;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -27,6 +31,7 @@ public class TourGuideService {
     private final RewardsService rewardsService;
     private final TripPricer tripPricer = new TripPricer();
     public final Tracker tracker;
+    private final ExecutorService executorService = Executors.newFixedThreadPool(200);
     boolean testMode = true;
 
     public TourGuideService(GpsUtil gpsUtil, RewardsService rewardsService) {
@@ -70,10 +75,10 @@ public class TourGuideService {
     }
 
     public List<Provider> getTripDeals(User user) {
-        int cumulatativeRewardPoints = user.getUserRewards().stream().mapToInt(i -> i.getRewardPoints()).sum();
+        int cumulativeRewardPoints = user.getUserRewards().stream().mapToInt(i -> i.getRewardPoints()).sum();
         List<Provider> providers = tripPricer.getPrice(tripPricerApiKey, user.getUserId(),
                 user.getUserPreferences().getNumberOfAdults(), user.getUserPreferences().getNumberOfChildren(),
-                user.getUserPreferences().getTripDuration(), cumulatativeRewardPoints);
+                user.getUserPreferences().getTripDuration(), cumulativeRewardPoints);
         user.setTripDeals(providers);
         return providers;
     }
@@ -85,7 +90,22 @@ public class TourGuideService {
         return visitedLocation;
     }
 
-	/*
+    public CompletableFuture<VisitedLocation> trackUserLocation2(User user) {
+        return CompletableFuture.supplyAsync(() ->{
+            VisitedLocation visitedLocation = gpsUtil.getUserLocation(user.getUserId());
+            user.addToVisitedLocations(visitedLocation);
+            rewardsService.calculateRewards(user);
+            return visitedLocation;
+        }, executorService);
+    }
+
+    public void trackAllUsersLocation(List<User> allUsers) throws ExecutionException, InterruptedException {
+        List<CompletableFuture<VisitedLocation>> completableFutureList
+                = allUsers.stream().map(this::trackUserLocation2).toList();
+        completableFutureList.forEach(CompletableFuture::join);
+    }
+
+	/*  V1
 	public List<Attraction> getNearByAttractions(VisitedLocation visitedLocation) {
 		List<Attraction> nearbyAttractions = new ArrayList<>();
 		for (Attraction attraction : gpsUtil.getAttractions()) {
@@ -93,7 +113,6 @@ public class TourGuideService {
 				nearbyAttractions.add(attraction);
 			}
 		}
-
 		return nearbyAttractions;
 	}
 	 */
