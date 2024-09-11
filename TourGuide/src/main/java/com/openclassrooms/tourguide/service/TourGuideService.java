@@ -91,7 +91,7 @@ public class TourGuideService {
     }
 
     public CompletableFuture<VisitedLocation> trackUserLocation2(User user) {
-        return CompletableFuture.supplyAsync(() ->{
+        return CompletableFuture.supplyAsync(() -> {
             VisitedLocation visitedLocation = gpsUtil.getUserLocation(user.getUserId());
             user.addToVisitedLocations(visitedLocation);
             rewardsService.calculateRewards(user);
@@ -104,18 +104,6 @@ public class TourGuideService {
                 = allUsers.stream().map(this::trackUserLocation2).toList();
         completableFutureList.forEach(CompletableFuture::join);
     }
-
-	/*  V1
-	public List<Attraction> getNearByAttractions(VisitedLocation visitedLocation) {
-		List<Attraction> nearbyAttractions = new ArrayList<>();
-		for (Attraction attraction : gpsUtil.getAttractions()) {
-			if (rewardsService.isWithinAttractionProximity(attraction, visitedLocation.location)) {
-				nearbyAttractions.add(attraction);
-			}
-		}
-		return nearbyAttractions;
-	}
-	 */
 
     //gives the list of the 5 attractions nearest to visitedLocation
     public List<Attraction> getNearByAttractions(VisitedLocation visitedLocation) {
